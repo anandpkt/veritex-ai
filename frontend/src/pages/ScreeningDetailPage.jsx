@@ -13,9 +13,10 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
-import { getScreening, getReport } from '../services/api';
+import { getScreening, getReport, deleteScreening } from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RiskAssessmentCard from '../components/RiskAssessmentCard';
 import EvidenceTable from '../components/EvidenceTable';
@@ -32,6 +33,7 @@ export default function ScreeningDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('evidence'); // 'evidence', 'forensics', 'digital_twin', 'graph', 'timeline'
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadScreening() {
@@ -65,6 +67,22 @@ export default function ScreeningDetailPage() {
   const handlePrint = () => {
     window.print();
   };
+
+  const handleDelete = async () => {
+    if (window.confirm(`Are you sure you want to permanently delete this screening dossier [${id}] and all associated files?`)) {
+      try {
+        setDeleting(true);
+        await deleteScreening(id);
+        alert(`Screening record ${id} has been permanently deleted.`);
+        window.location.href = '/history';
+      } catch (err) {
+        console.error('Failed to delete screening record:', err);
+        alert('Failed to delete screening record. Please try again.');
+        setDeleting(false);
+      }
+    }
+  };
+
 
   if (loading) {
     return (
@@ -155,9 +173,25 @@ export default function ScreeningDetailPage() {
               )}
               <span>{t.btnDownloadPdf}</span>
             </button>
+
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="px-3 py-2 text-[13px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-300 rounded-sm inline-flex items-center space-x-1.5 transition-colors"
+              title="Delete this screening record"
+            >
+              {deleting ? (
+                <span className="animate-spin mr-1">⏳</span>
+              ) : (
+                <Trash2 className="w-4 h-4 text-gov-danger" />
+              )}
+              <span>Delete Record</span>
+            </button>
           </div>
         </div>
       </div>
+
 
       {/* Main Risk Assessment Evaluation Card */}
       <RiskAssessmentCard

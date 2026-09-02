@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
-import { History, Search, Filter, ArrowRight, ShieldCheck, AlertTriangle, ShieldAlert, AlertCircle, RotateCcw } from 'lucide-react';
-import { getScreeningsList } from '../services/api';
+import { History, Search, Filter, ArrowRight, ShieldCheck, AlertTriangle, ShieldAlert, AlertCircle, RotateCcw, Trash2 } from 'lucide-react';
+import { getScreeningsList, deleteScreening, purgeAllScreenings } from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function HistoryPage() {
@@ -12,21 +12,56 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [deletingId, setDeletingId] = useState(null);
+
+  const loadScreenings = async () => {
+    try {
+      setLoading(true);
+      const data = await getScreeningsList(100, filter === 'ALL' ? null : filter);
+      setScreenings(data);
+    } catch (err) {
+      console.error('Failed to load screening history:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function load() {
+    loadScreenings();
+  }, [filter]);
+
+  const handleDeleteRecord = async (id, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm(`Are you sure you want to delete screening record [${id}]?`)) {
+      try {
+        setDeletingId(id);
+        await deleteScreening(id);
+        setScreenings((prev) => prev.filter((item) => item.id !== id));
+      } catch (err) {
+        console.error('Failed to delete record:', err);
+        alert('Failed to delete record. Please try again.');
+      } finally {
+        setDeletingId(null);
+      }
+    }
+  };
+
+  const handlePurgeAll = async () => {
+    if (window.confirm('WARNING: Are you sure you want to PURGE ALL screening records from the database? This action cannot be undone.')) {
       try {
         setLoading(true);
-        const data = await getScreeningsList(100, filter === 'ALL' ? null : filter);
-        setScreenings(data);
+        await purgeAllScreenings();
+        setScreenings([]);
+        alert('All screening records have been purged.');
       } catch (err) {
-        console.error('Failed to load screening history:', err);
+        console.error('Failed to purge records:', err);
+        alert('Failed to purge records. Please try again.');
       } finally {
         setLoading(false);
       }
     }
-    load();
-  }, [filter]);
+  };
 
   const filteredScreenings = screenings.filter((s) => {
     if (!searchQuery) return true;
@@ -68,22 +103,37 @@ export default function HistoryPage() {
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center space-x-1 bg-gov-bg p-1 rounded-sm border border-gov-border text-xs">
-            {['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((lvl) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filter Pills */}
+            <div className="flex items-center space-x-1 bg-gov-bg p-1 rounded-sm border border-gov-border text-xs">
+              {['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((lvl) => (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setFilter(lvl)}
+                  className={`px-3 py-1 rounded-sm font-mono text-[11px] font-bold transition-colors ${
+                    filter === lvl
+                      ? 'bg-gov-primary text-white'
+                      : 'text-gov-muted hover:bg-gov-lightBlue hover:text-gov-primary'
+                  }`}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+
+            {/* Purge All Button */}
+            {screenings.length > 0 && (
               <button
-                key={lvl}
                 type="button"
-                onClick={() => setFilter(lvl)}
-                className={`px-3 py-1 rounded-sm font-mono text-[11px] font-bold transition-colors ${
-                  filter === lvl
-                    ? 'bg-gov-primary text-white'
-                    : 'text-gov-muted hover:bg-gov-lightBlue hover:text-gov-primary'
-                }`}
+                onClick={handlePurgeAll}
+                className="px-2.5 py-1 text-[11.5px] font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-300 rounded-sm inline-flex items-center space-x-1"
+                title="Purge all records"
               >
-                {lvl}
+                <Trash2 className="w-3.5 h-3.5 text-gov-danger" />
+                <span>Clear All Records</span>
               </button>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -125,7 +175,7 @@ export default function HistoryPage() {
                 <th className="w-28">Doc Type</th>
                 <th className="w-32">Risk Score</th>
                 <th>Administrative Decision</th>
-                <th className="w-24 text-right">Action</th>
+                <th className="w-32 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -170,14 +220,24 @@ export default function HistoryPage() {
                     <td className="text-gov-text text-[12.5px] font-medium">
                       {s.recommended_action}
                     </td>
-                    <td className="text-right">
+                    <td className="text-right space-x-2">
                       <Link
                         to={`/screening/${s.id}`}
-                        className="text-gov-primary hover:text-gov-secondary font-bold text-[12.5px] underline inline-flex items-center space-x-1"
+                        className="text-gov-primary hover:text-gov-secondary font-bold text-[12px] underline inline-flex items-center space-x-0.5"
                       >
                         <span>Dossier</span>
                         <ArrowRight className="w-3 h-3" />
                       </Link>
+
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteRecord(s.id, e)}
+                        disabled={deletingId === s.id}
+                        className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 inline-flex items-center"
+                        title="Delete Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -189,3 +249,4 @@ export default function HistoryPage() {
     </div>
   );
 }
+

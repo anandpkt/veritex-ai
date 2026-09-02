@@ -341,3 +341,18 @@ async def get_report(screening_id: str):
 @router.get("/list/all")
 async def list_screenings(limit: int = 50, risk_filter: Optional[str] = Query(None)):
     return get_all_screenings(limit=limit, risk_filter=risk_filter)
+
+@router.delete("/{screening_id}")
+async def delete_screening_record(screening_id: str):
+    from database import delete_screening
+    deleted = delete_screening(screening_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Screening record not found or already deleted")
+    return {"status": "SUCCESS", "message": f"Screening record {screening_id} deleted successfully."}
+
+@router.delete("/purge/all")
+async def purge_all_records():
+    from database import purge_all_screenings
+    count = purge_all_screenings()
+    return {"status": "SUCCESS", "message": f"All {count} screening records purged from database."}
+

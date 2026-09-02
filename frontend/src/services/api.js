@@ -82,4 +82,15 @@ export const getSystemStatus = async () => {
   return res.data;
 };
 
+export const deleteScreening = async (screeningId) => {
+  const res = await api.delete(`/screening/${screeningId}`);
+  return res.data;
+};
+
+export const purgeAllScreenings = async () => {
+  const res = await api.delete('/screening/purge/all');
+  return res.data;
+};
+
 export default api;
+

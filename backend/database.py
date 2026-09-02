@@ -211,3 +211,26 @@ def get_dashboard_metrics() -> Dict[str, Any]:
         "demo_mode_active": True,
         "disclaimer": "Research / Demonstration Prototype — Synthetic Data Only"
     }
+
+def delete_screening(screening_id: str) -> bool:
+    """Deletes a single screening record and its audit logs."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM screenings WHERE id = ?", (screening_id,))
+    deleted = cursor.rowcount > 0
+    cursor.execute("DELETE FROM audit_logs WHERE screening_id = ?", (screening_id,))
+    conn.commit()
+    conn.close()
+    return deleted
+
+def purge_all_screenings() -> int:
+    """Purges all non-preset screening records from the database."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM screenings")
+    count = cursor.rowcount
+    cursor.execute("DELETE FROM audit_logs")
+    conn.commit()
+    conn.close()
+    return count
+
