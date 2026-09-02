@@ -52,7 +52,7 @@ def init_db():
         id TEXT PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         document_type TEXT NOT NULL,
-        source_type TEXT NOT NULL, -- 'DEMO_PRESET', 'SYNTHETIC_LAB', 'LIVE_UPLOAD'
+        source_type TEXT NOT NULL,
         case_id TEXT,
         document_image_url TEXT NOT NULL,
         live_photo_url TEXT,
@@ -74,11 +74,28 @@ def init_db():
         identity_graph_json TEXT NOT NULL,
         ground_truth_json TEXT,
         checksum_validation_json TEXT,
-        manual_override_status TEXT DEFAULT 'NONE', -- 'NONE', 'MANUALLY_APPROVED', 'ESCALATED_FRAUD', 'REUPLOAD_REQUESTED'
+        manual_override_status TEXT DEFAULT 'NONE',
         reviewer_notes TEXT,
         status TEXT DEFAULT 'COMPLETED'
     )
     """)
+    
+    # Auto-migrate any missing columns in screenings table
+    cursor.execute("PRAGMA table_info(screenings)")
+    existing_cols = [row["name"] for row in cursor.fetchall()]
+    cols_to_add = [
+        ("ground_truth_json", "TEXT"),
+        ("checksum_validation_json", "TEXT"),
+        ("manual_override_status", "TEXT DEFAULT 'NONE'"),
+        ("reviewer_notes", "TEXT")
+    ]
+    for col_name, col_type in cols_to_add:
+        if col_name not in existing_cols:
+            try:
+                cursor.execute(f"ALTER TABLE screenings ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass
+
     
     # 4. AuditLogs Table
     cursor.execute("""
@@ -86,11 +103,20 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         screening_id TEXT,
-        event_type TEXT NOT NULL, -- 'SCREENING_EXECUTED', 'MANUAL_OVERRIDE_APPROVED', 'ESCALATED_FRAUD', 'RECORD_DELETED'
+        event_type TEXT NOT NULL,
         actor TEXT DEFAULT 'AI_SECURITY_ENGINE',
         details TEXT
     )
     """)
+    
+    cursor.execute("PRAGMA table_info(audit_logs)")
+    audit_cols = [row["name"] for row in cursor.fetchall()]
+    if "actor" not in audit_cols:
+        try:
+            cursor.execute("ALTER TABLE audit_logs ADD COLUMN actor TEXT DEFAULT 'AI_SECURITY_ENGINE'")
+        except Exception:
+            pass
+
     
     # Seed Ground Truth database entities into user_persons and document_metadata
     from services.registry_service import MOCK_GROUND_TRUTH_DATABASE
