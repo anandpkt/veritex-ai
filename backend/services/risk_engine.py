@@ -13,6 +13,7 @@ def compute_risk_fusion(
     Multi-Signal Risk Fusion Engine:
     Integrates independent evidence vectors into a normalized 0-100 Risk Score
     with full explainability and transparent pillar breakdowns.
+    Works dynamically for ANY new uploaded document or synthetic data.
     """
     w_tampering = weights.get("weight_tampering", 30.0) if weights else 30.0
     w_mrz = weights.get("weight_mrz", 20.0) if weights else 20.0
@@ -25,20 +26,31 @@ def compute_risk_fusion(
     
     # Calculate individual signal risk components (0 = Safe, 100 = Maximum Risk)
     
-    # 1. Tampering Risk
+    # 1. Tampering Risk (Image Forensics: ELA, Noise, Gradient)
     is_tampered = forensic_data.get("tampering_detected", False)
-    forensic_score = forensic_data.get("forensic_score", 100) # 100 is clean, 20 is heavily tampered
+    forensic_score = forensic_data.get("forensic_score", 100) # 100 is clean, 18 is heavily tampered
     tamper_risk = (100 - forensic_score) if is_tampered else 5
     
-    # 2. MRZ Risk
+    # 2. MRZ Risk (Checksums + MRZ Field Discrepancies)
     mrz_valid = mrz_data.get("check_digits_valid", True)
     mrz_risk = 0 if mrz_valid else 90
     if len(mrz_data.get("discrepancies", [])) > 0:
+        mrz_risk = max(mrz_risk, 85)
+        
+    # Check if MRZ conflicts with visual OCR
+    vis_dob = extracted_data.get("dob", "")
+    mrz_dob = mrz_data.get("dob", "")
+    if vis_dob and mrz_dob and vis_dob != mrz_dob and vis_dob != "Unknown" and mrz_dob != "Unknown":
+        mrz_risk = max(mrz_risk, 85)
+        
+    vis_doc = extracted_data.get("document_number", "")
+    mrz_doc = mrz_data.get("document_number", "")
+    if vis_doc and mrz_doc and vis_doc.replace("<", "") != mrz_doc.replace("<", ""):
         mrz_risk = max(mrz_risk, 80)
         
     # 3. Face Biometric Risk
     face_sim = face_result.get("similarity_score", 0.92)
-    face_risk = int(max(0, (0.75 - face_sim) * 220)) if face_sim < 0.70 else int(max(0, (1.0 - face_sim) * 30))
+    face_risk = int(max(0, (0.75 - face_sim) * 240)) if face_sim < 0.70 else int(max(0, (1.0 - face_sim) * 25))
     face_risk = min(100, max(0, face_risk))
     
     # 4. Consistency Risk
@@ -50,7 +62,7 @@ def compute_risk_fusion(
     validity_risk = max(0, 100 - validity_score)
     
     # 6. Metadata Risk
-    metadata_risk = 10 if is_tampered else 0
+    metadata_risk = 15 if is_tampered else 0
     
     # Weighted calculation
     weighted_sum = (
@@ -62,6 +74,21 @@ def compute_risk_fusion(
         (metadata_risk * w_metadata)
     ) / total_w
     
+    # Non-linear boost if compound severe risks are present
+    critical_signals = sum([
+        1 if tamper_risk > 70 else 0,
+        1 if mrz_risk > 70 else 0,
+        1 if face_risk > 70 else 0,
+        1 if consistency_risk > 70 else 0
+    ])
+    
+    if critical_signals >= 3:
+        weighted_sum = max(weighted_sum, 88.0)
+    elif critical_signals >= 2:
+        weighted_sum = max(weighted_sum, 78.0)
+    elif critical_signals == 1:
+        weighted_sum = max(weighted_sum, 55.0)
+        
     risk_score = int(round(weighted_sum))
     risk_score = max(5, min(99, risk_score))
     
