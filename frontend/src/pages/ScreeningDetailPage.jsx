@@ -14,8 +14,11 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Trash2
+  Trash2,
+  Database,
+  UserCheck
 } from 'lucide-react';
+
 import { getScreening, getReport, deleteScreening } from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RiskAssessmentCard from '../components/RiskAssessmentCard';
@@ -24,7 +27,10 @@ import ForensicViewer from '../components/ForensicViewer';
 import DigitalTwinView from '../components/DigitalTwinView';
 import IdentityGraphCanvas from '../components/IdentityGraphCanvas';
 import InvestigationTimeline from '../components/InvestigationTimeline';
+import GroundTruthComparison from '../components/GroundTruthComparison';
+import ManualOverridePanel from '../components/ManualOverridePanel';
 import NoticeBox from '../components/NoticeBox';
+
 
 export default function ScreeningDetailPage() {
   const { id } = useParams();
@@ -113,8 +119,9 @@ export default function ScreeningDetailPage() {
   const mrz = screening.mrz_data || {};
 
   const tabs = [
+    { id: 'comparison', label: 'Ground-Truth DB Comparison', icon: Database },
     { id: 'evidence', label: `Evidence Findings (${screening.evidence?.length || 0})`, icon: FileText },
-    { id: 'forensics', label: 'Document Forensics (ELA/Noise)', icon: Eye },
+    { id: 'forensics', label: 'Document Forensics (Grad-CAM/ELA)', icon: Eye },
     { id: 'digital_twin', label: 'Document Digital Twin', icon: Layers },
     { id: 'graph', label: 'Identity Topology Graph', icon: Share2 },
     { id: 'timeline', label: 'Pipeline Audit Trail', icon: Clock },
@@ -192,6 +199,13 @@ export default function ScreeningDetailPage() {
         </div>
       </div>
 
+      {/* Human Officer Manual Override Panel */}
+      <ManualOverridePanel
+        screeningId={screening.id}
+        currentOverrideStatus={screening.manual_override_status}
+        currentNotes={screening.reviewer_notes}
+        onOverrideApplied={(updated) => setScreening(updated)}
+      />
 
       {/* Main Risk Assessment Evaluation Card */}
       <RiskAssessmentCard
@@ -233,6 +247,14 @@ export default function ScreeningDetailPage() {
 
       {/* Tab Content Panels */}
       <div>
+        {activeTab === 'comparison' && (
+          <GroundTruthComparison
+            groundTruthVerification={screening.ground_truth_verification}
+            extractedData={ext}
+            documentType={screening.document_type}
+          />
+        )}
+
         {activeTab === 'evidence' && (
           <EvidenceTable evidence={screening.evidence} />
         )}
@@ -264,6 +286,7 @@ export default function ScreeningDetailPage() {
           <InvestigationTimeline timeline={screening.timeline} />
         )}
       </div>
+
 
       {/* Official Footnote Notice */}
       <NoticeBox type="info" title="Verification Audit Compliance">

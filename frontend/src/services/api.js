@@ -92,5 +92,21 @@ export const purgeAllScreenings = async () => {
   return res.data;
 };
 
+export const applyManualOverride = async (screeningId, overrideData) => {
+  const res = await api.post(`/screening/${screeningId}/manual-override`, overrideData);
+  return res.data;
+};
+
+export const getAuditLogs = async (limit = 100) => {
+  const res = await api.get('/screening/audit-logs', { params: { limit } });
+  return res.data;
+};
+
+export const getMockRegistry = async () => {
+  const res = await api.get('/screening/registry-lookup');
+  return res.data;
+};
+
 export default api;
+
 

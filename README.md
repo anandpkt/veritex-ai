@@ -1,151 +1,109 @@
-# VERIDEX AI — AI-Based Fake Identity & Document Screening System
+# VERIDEX AI — AI-Based Fake Identity & Document Screening System (SIH26188)
 
 > **Tagline:** *From Document Scan to Explainable Risk*  
-> **Problem Statement:** SIH26188 — AI-Based Fake Identity & Document Screening System  
-> **Disclaimer:** *Research / Demonstration Prototype — Synthetic Data Only. Standalone execution with zero dataset dependency.*
+> **Problem Statement ID:** SIH26188 — Automated Multi-Signal Identity Forgery & Fake Document Screening System  
+> **Architecture:** Enterprise Multi-Vector Security Core (FastAPI Backend + React / Tailwind Admin Console)
 
 ---
 
-## 🌟 Executive Summary
+## 🏛️ System Architecture
 
-**VERIDEX AI** is a multi-layer identity and document forensic screening platform designed to analyze physical documents, digital files, and biometric facial feeds to produce transparent, **explainable risk assessments** rather than black-box binary verdicts.
-
-Instead of asserting *"This document is 100% fake"*, VERIDEX AI answers:
-> **"Why was this document flagged?"** with a ranked, mathematically fused evidence chain across 6 independent verification pillars.
-
----
-
-## 🔒 Zero-Dataset Standalone Architecture
-
-To ensure zero friction and 100% reproducibility on any standard CPU laptop:
-1. **Built-in Synthetic Document Generator:** Creates high-definition fictional passports and ID cards with security guilloche patterns, microtext, and ICAO 9303 OCR-B Machine-Readable Zones.
-2. **6 Deterministic Benchmark Test Cases:** Pre-configured ground-truth scenarios (Genuine, DOB Manipulation, Expired Document, Photo Identity Mismatch, Spliced Image Artifacts, Multiple Compound Fraud).
-3. **Local Image Forensics:** Employs Error Level Analysis (ELA), Laplacian high-pass noise variance mapping, and Sobel gradient edge analysis without requiring heavyweight neural networks.
-4. **Dual Engine Abstraction:** Seamless fallback from optional deep-learning packages (PaddleOCR / InsightFace / Tesseract) to high-precision algorithmic simulation with standard unified schemas.
-
----
-
-## 🏗️ Multi-Layer Evidence Chain Architecture
-
-```text
-       Document Ingestion (PNG / JPG / PDF)
-                         ↓
-       OCR Field Extraction & Bounding Boxes
-                         ↓
-       ICAO 9303 MRZ Parsing & 7-3-1 Checksums
-                         ↓
-       Field Consistency & Chronology Validation
-                         ↓
-       Image Forensics (ELA, Noise, Edge Seams)
-                         ↓
-       Facial Biometric Verification Comparison
-                         ↓
-       Multi-Signal Weighted Risk Fusion Engine
-                         ↓
-             Explainable Decision Output
-          (LOW / MEDIUM / HIGH / CRITICAL)
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              CLIENT APPLICATION & ADMIN SOC                            │
+│  ┌────────────────────────┐  ┌────────────────────────┐  ┌──────────────────────────┐  │
+│  │ Multi-Doc Upload Zone  │  │ Live Webcam Biometric  │  │ Admin Comparative Matrix │  │
+│  │ (Aadhaar, PAN, Pass,DL)│  │ Liveness Capture Modal │  │ & Human Manual Override  │  │
+│  └───────────┬────────────┘  └───────────┬────────────┘  └────────────▲─────────────┘  │
+└──────────────┼───────────────────────────┼────────────────────────────┼────────────────┘
+               │ Multipart ID Attachment   │ WebRTC Video Snapshot      │ REST API
+               ▼                           ▼                            │
+┌───────────────────────────────────────────────────────────────────────┴────────────────┐
+│                              FASTAPI AI SECURITY ENGINE                                │
+│                                                                                        │
+│ 1. Multi-Template OCR & Visual Extraction Zone (VIZ)                                  │
+│    • Bounding box layout normalization for Aadhaar, PAN, Passport, and DL credentials. │
+│                                                                                        │
+│ 2. Algorithmic Checksum & Mathematical Rule Engine                                     │
+│    • Verhoeff Checksum Algorithm (Modulus 10, Dihedral Group D5 for 12-Digit Aadhaar). │
+│    • Income Tax PAN 10-Char Entity Alphanumeric Rule ([A-Z]{5}[0-9]{4}[A-Z]).         │
+│    • ICAO Doc 9303 TD3 7-3-1 Weighted Modulus-10 Check Digits (Passport MRTD).        │
+│    • Parivahan State RTO & Issuance Format Validator (Driving License).                │
+│                                                                                        │
+│ 3. External Database Cross-Verification & Discrepancy Classifier                       │
+│    • Queries National Citizen Ground-Truth Registry (UIDAI, NSDL, Passport Seva).      │
+│    • Discrepancy Classification:                                                       │
+│      - Minor Typo (Fuzzy Levenshtein similarity >= 85%) -> -15 pts penalty.           │
+│      - Critical Discrepancy (Unregistered ID, DOB Conflict, Face Swap) -> HIGH RISK.   │
+│                                                                                        │
+│ 4. Deep Image Forensics & Forgery Saliency Mapping                                     │
+│    • Error Level Analysis (ELA): Detects localized JPEG compression discrepancies.     │
+│    • Laplacian Noise Variance: Maps substrate noise variance and smooth paste seams.   │
+│    • Grad-CAM Saliency Heatmap: Visualizes neural network attention focus on forgery.  │
+│    • Sobel Gradient Magnitude: Edge discontinuity and spliced font boundary detection. │
+│                                                                                        │
+│ 5. Biometric Facial Cross-Correlation & Liveness Match                                 │
+│    • Normalized Cross-Correlation (NCC) + RGB Color Histogram Intersection (0-100%).   │
+│                                                                                        │
+│ 6. Multi-Signal Risk Fusion Engine & Human Decision Overrides                          │
+│    • Synthesizes multi-vector evidence chain into 0-100 Authenticity & Risk Score.     │
+│    • Human Officer Actions: [ Approve Override ], [ Escalate Fraud ], [ Re-upload ].   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## ⚡ Quick Start
 
-### 1. Prerequisites
-- **Python 3.10+**
-- **Node.js 18+** & **npm**
-
-### 2. Automatic One-Click Launch (Windows)
-Double-click:
-```bash
-start_all.bat
+### 1. One-Click Startup (Windows)
+Double-click `start_all.bat` or run:
+```powershell
+.\start_all.bat
 ```
-Or run separately:
-- **Backend:** `.\start_backend.bat` (runs on `http://localhost:8000`)
-- **Frontend:** `.\start_frontend.bat` (runs on `http://localhost:5173`)
 
-### 3. Manual Launch
-
-#### Start Backend:
+### 2. Manual Startup
+#### Backend (FastAPI Core)
 ```bash
 cd backend
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+pip install -r requirements.txt
+python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
-- API Documentation (Swagger): [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health Check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
-#### Start Frontend:
+#### Frontend (React Admin Console)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-- Web Application: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## 🎯 3–5 Minute Hackathon Presentation Walkthrough
+## 🌐 Web Console & API Endpoints
 
-| Step | Screen | Action | Key Demonstration Talking Point |
-|---|---|---|---|
-| **1. Dashboard** | `/` | Open SOC Dashboard | Point out 1,298 daily volume metric, 24h screening graph, and live threat feed tagged as synthetic demo data. |
-| **2. Genuine Case** | `/screening/new` | Click **Case 1 — Genuine Passport** | Show Risk **12/100 (LOW RISK)**, all 4 pillars green, action **PASS**. |
-| **3. DOB Tampering** | `/screening/new` | Click **Case 2 — DOB Manipulation** | Show Risk **82/100 (HIGH RISK)**, DOB mismatch (Visual 2002 vs MRZ 1992). |
-| **4. Forensic Studio** | `/forensics` | Switch tabs: **Heatmap / ELA / Noise / Split Slider** | Demonstrate interactive before/after split slider and suspicious bounding box over DOB. |
-| **5. Digital Twin** | `/digital-twin` | View side-by-side table | Show physical scan paired with parsed structured attributes and red mismatch highlights. |
-| **6. Identity Graph** | `/identity-graph` | Click entity nodes | Demonstrate the explainable topological graph connecting Subject $\leftrightarrow$ DOB $\leftrightarrow$ MRZ $\leftrightarrow$ OCR. |
-| **7. Risk Simulator** | `/risk-simulator` | Toggle signals (Tamper, MRZ, Face) and adjust weights | Show dynamic score recalculation (e.g. 87 $\to$ 69 $\to$ 12) without hard-coded animations. |
-| **8. Synthetic Lab** | `/synthetic-lab` | Check "Change Doc Number" + "Corrupt MRZ" $\to$ Generate | Show instantaneous custom specimen generation with ground truth mutation tracking. |
-| **9. PDF Dossier** | Dossier Page | Click **Download PDF Dossier** | Open professional multi-page ReportLab PDF report containing full audit evidence. |
+| Portal / API | Address | Description |
+|---|---|---|
+| **Web Application Portal** | **`http://localhost:5173`** | Citizen & Officer Verification Dashboard |
+| **New Screening Form** | **`http://localhost:5173/screening/new`** | Upload ID, capture live webcam selfie, select category |
+| **Audit Registry** | **`http://localhost:5173/history`** | Immutable session audit log & search register |
+| **Interactive Swagger Docs** | **`http://localhost:8000/docs`** | FastAPI OpenAPI Interactive Documentation |
+| **Health Telemetry** | **`http://localhost:8000/api/health`** | Engine health probe |
 
 ---
 
-## 📁 Repository Structure
+## 🗄️ Database Schema (SQLite Relational Model)
 
-```text
-veridex-ai/
-├── backend/
-│   ├── main.py                           # FastAPI application & lifecycle
-│   ├── database.py                       # SQLite database layer
-│   ├── api/
-│   │   ├── screening.py                  # Upload, analyze, and retrieve dossiers
-│   │   ├── documents.py                  # Synthetic doc lab & presets catalog
-│   │   ├── simulation.py                 # Risk simulator calculation sandbox
-│   │   ├── dashboard.py                  # SOC dashboard metrics & telemetry
-│   │   ├── reports.py                    # PDF report generation
-│   │   └── system.py                     # Micro-engine health & diagnostics
-│   ├── services/
-│   │   ├── synthetic_document_service.py # High-res fictional document generator
-│   │   ├── ocr_service.py                # Dual OCR engine (Tesseract/Synthetic fallback)
-│   │   ├── mrz_service.py                # ICAO 9303 MRZ parser & 7-3-1 check digits
-│   │   ├── validation_service.py         # Rule validation (expiry, chronology)
-│   │   ├── forensic_service.py           # ELA, noise variance, edge gradient maps
-│   │   ├── face_service.py               # Biometric facial similarity verification
-│   │   ├── consistency_service.py        # Cross-signal matrix & identity graph generator
-│   │   ├── risk_engine.py                # Weighted multi-signal risk fusion
-│   │   └── report_service.py             # ReportLab PDF dossier generator
-│   ├── demo_data/
-│   │   └── preset_cases.py               # 6 deterministic demo cases with ground truth
-│   └── storage/                          # Generated documents, heatmaps, and PDFs
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/                   # RiskGauge, EvidenceCard, ForensicViewer, DigitalTwin, Graph
-│   │   ├── pages/                        # Dashboard, NewScreening, Dossier, SyntheticLab, Simulator
-│   │   └── services/api.js               # API client wrapper
-│   ├── package.json
-│   ├── vite.config.js
-│   └── tailwind.config.js
-│
-├── start_all.bat                         # Unified Windows launcher
-├── start_backend.bat                     # Backend launcher
-├── start_frontend.bat                    # Frontend launcher
-└── README.md
+- **`user_persons`**: Registered citizen identity records (`id`, `full_name`, `dob`, `gender`, `nationality`, `father_name`, `address`, `status`).
+- **`document_metadata`**: Linked identity credentials (`id`, `person_id`, `document_type`, `document_number`, `issuing_authority`).
+- **`screenings`**: Verification dossiers (`id`, `document_type`, `source_type`, `risk_score`, `risk_level`, `extracted_data_json`, `ground_truth_json`, `checksum_validation_json`, `manual_override_status`, `reviewer_notes`).
+- **`audit_logs`**: Immutable audit ledger (`id`, `timestamp`, `screening_id`, `event_type`, `actor`, `details`).
+
+---
+
+## 🧪 Automated Testing
+
+To run the automated verification test suite:
+```bash
+cd backend
+python test_sih26188_pipeline.py
 ```
-
----
-
-## 🛡️ Ethics & Responsible AI Policy
-
-- **No Real Personal Data:** All names, identity numbers, and photographs are 100% fictional.
-- **No Official Claims:** Does not claim authoritative government verification or immigration authority.
-- **Explainable Decisions:** Decisions are advisory risk levels (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`, `MANUAL VERIFICATION REQUIRED`) backed by observable evidence.
+*Validates Verhoeff Aadhaar algorithm, PAN syntax validator, external database cross-checks, fuzzy typo penalties, and audit trail logging.*

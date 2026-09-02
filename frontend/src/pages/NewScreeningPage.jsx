@@ -14,25 +14,31 @@ import {
   Info,
   Globe,
   User,
-  Calendar
+  Calendar,
+  Database,
+  ShieldCheck,
+  Video
 } from 'lucide-react';
-import { getPresets, analyzePreset, uploadAndScreen } from '../services/api';
+import { getPresets, analyzePreset, uploadAndScreen, getMockRegistry } from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
 import NoticeBox from '../components/NoticeBox';
+import LiveCameraModal from '../components/LiveCameraModal';
 
 export default function NewScreeningPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [presets, setPresets] = useState([]);
+  const [mockRegistry, setMockRegistry] = useState([]);
 
   // File states
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [selectedLivePhoto, setSelectedLivePhoto] = useState(null);
   const [livePhotoPreview, setLivePhotoPreview] = useState(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   // User Claimed Details
-  const [docType, setDocType] = useState('PASSPORT');
+  const [docType, setDocType] = useState('AADHAAR');
   const [name, setName] = useState('');
   const [dob, setDob] = useState('');
   const [docNumber, setDocNumber] = useState('');
@@ -46,23 +52,25 @@ export default function NewScreeningPage() {
   const processingSteps = [
     'Validating uploaded file format, dimensions & DPI resolution',
     'Extracting & cross-referencing subject details (Name, DOB, Doc Number)',
-    'Validating against ISO 3166-1 Country Code & ICAO Doc 9303 Standards',
-    'Computing ICAO 7-3-1 weighted check digit modulus-10 verification',
-    'Executing Error Level Analysis (ELA) and Laplacian noise variance scan',
-    'Analyzing facial biometric feature similarity against live stream',
+    'Executing Verhoeff (Aadhaar) / PAN Regex / ICAO Checksum Algorithms',
+    'Querying National Citizen & Document Ground-Truth Registry (UIDAI/NSDL)',
+    'Classifying discrepancies (Fuzzy Typo Penalty vs Critical Identity Swap)',
+    'Executing Error Level Analysis (ELA) and Grad-CAM attention heatmap',
+    'Computing biometric cross-correlation against live selfie stream',
     'Synthesizing multi-signal evidence chain and computing risk assessment'
   ];
 
   useEffect(() => {
-    async function loadPresets() {
+    async function loadInitialData() {
       try {
-        const data = await getPresets();
-        setPresets(data);
+        const [pData, rData] = await Promise.all([getPresets(), getMockRegistry()]);
+        setPresets(pData);
+        setMockRegistry(rData);
       } catch (err) {
-        console.error('Failed to load preset test cases:', err);
+        console.error('Failed to load initial data:', err);
       }
     }
-    loadPresets();
+    loadInitialData();
   }, []);
 
   const handleFileChange = (e) => {
@@ -99,10 +107,32 @@ export default function NewScreeningPage() {
     }
   };
 
+  const handleCameraCapture = (file, previewUrl) => {
+    setSelectedLivePhoto(file);
+    setLivePhotoPreview(previewUrl);
+  };
+
+  const handlePreFill = (person) => {
+    setName(person.full_name);
+    setDob(person.dob);
+    setNationality(person.nationality || 'IND');
+    if (docType === 'AADHAAR' && person.aadhaar_number) {
+      setDocNumber(person.aadhaar_number);
+    } else if (docType === 'PAN' && person.pan_number) {
+      setDocNumber(person.pan_number);
+    } else if (docType === 'PASSPORT' && person.passport_number) {
+      setDocNumber(person.passport_number);
+    } else if (docType === 'DRIVING_LICENSE' && person.dl_number) {
+      setDocNumber(person.dl_number);
+    } else {
+      setDocNumber(person.aadhaar_number || person.passport_number || 'P1234567');
+    }
+  };
+
   const simulateStepProgress = async () => {
     for (let i = 0; i < processingSteps.length; i++) {
       setCurrentStepIndex(i);
-      await new Promise((r) => setTimeout(r, 65));
+      await new Promise((r) => setTimeout(r, 60));
     }
   };
 
@@ -171,12 +201,19 @@ export default function NewScreeningPage() {
       {/* Page Header */}
       <div className="gov-card space-y-2 border-l-4 border-gov-primary">
         <h1 className="text-[24px] font-extrabold text-gov-primary">
-          AI Document & Identity Verification Service
+          AI-Based Fake Identity & Document Screening System (SIH26188)
         </h1>
         <p className="text-[14px] text-gov-muted">
-          Upload any identity document and verify claimed details against international ICAO Doc 9303 and ISO 3166-1 standards with automated image forensics.
+          Multi-signal verification engine: Verhoeff Checksum (Aadhaar), PAN Format Validation, Ground-Truth Database Cross-Check, Grad-CAM/ELA Forgery Detection, and Live Biometric Liveness Matching.
         </p>
       </div>
+
+      {/* Live Camera Modal */}
+      <LiveCameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={handleCameraCapture}
+      />
 
       {/* Processing State Modal */}
       {loading && (
@@ -185,9 +222,9 @@ export default function NewScreeningPage() {
             <div className="border-b border-gov-border pb-3">
               <h3 className="text-[16px] font-bold text-gov-primary uppercase tracking-wide flex items-center space-x-2">
                 <span className="w-3 h-3 rounded-full bg-gov-saffron animate-pulse"></span>
-                <span>Executing Multi-Signal Verification Pipeline</span>
+                <span>Executing SIH26188 Multi-Signal AI Security Pipeline</span>
               </h3>
-              <p className="text-[12px] text-gov-muted font-mono">Cross-checking public standards & image forensics...</p>
+              <p className="text-[12px] text-gov-muted font-mono">Cross-checking checksums, database registry & image forensics...</p>
             </div>
 
             {/* Checklist of stages */}
@@ -195,7 +232,7 @@ export default function NewScreeningPage() {
               {processingSteps.map((step, idx) => (
                 <div
                   key={idx}
-                  className={`flex items-center space-x-2.5 text-[13px] font-mono transition-opacity ${
+                  className={`flex items-center space-x-2.5 text-[12.5px] font-mono transition-opacity ${
                     idx <= currentStepIndex ? 'text-gov-text opacity-100 font-semibold' : 'text-gov-muted opacity-40'
                   }`}
                 >
@@ -212,7 +249,7 @@ export default function NewScreeningPage() {
             </div>
 
             <div className="text-[11.5px] text-gov-muted bg-gov-lightBlue p-2.5 rounded-sm border border-gov-border">
-              Please wait while the multi-signal engine cross-examines document checksums and forensic patterns.
+              Please wait while the multi-vector engine analyzes pixel compression seams, verifies database registry records, and computes the risk score.
             </div>
           </div>
         </div>
@@ -223,9 +260,9 @@ export default function NewScreeningPage() {
         {/* Left Form: Document Submission (7 cols) */}
         <div className="lg:col-span-7 gov-card space-y-4">
           <div className="gov-section-header">
-            <span>Document & Subject Verification Form</span>
+            <span>Identity Document Submission & Verification</span>
             <span className="text-[12px] font-mono text-gov-primary bg-gov-lightBlue px-2 py-0.5 rounded border border-gov-border">
-              PUBLIC DATASET VERIFIED
+              UIDAI / NSDL / ICAO
             </span>
           </div>
 
@@ -245,18 +282,19 @@ export default function NewScreeningPage() {
                 id="doc-type-select"
                 value={docType}
                 onChange={(e) => setDocType(e.target.value)}
-                className="gov-input"
+                className="gov-input font-bold text-gov-primary"
               >
-                <option value="PASSPORT">Passport Specimen (ICAO Doc 9303 TD3 - 44 char MRZ)</option>
-                <option value="NATIONAL_ID">National Identity Card (ICAO Doc 9303 TD1 - 30 char MRZ)</option>
-                <option value="DRIVERS_LICENSE">Official Driver's License Specimen</option>
+                <option value="AADHAAR">Aadhaar Card (UIDAI 12-Digit Verhoeff Checksum)</option>
+                <option value="PAN">PAN Card (Income Tax 10-Char Entity Alphanumeric)</option>
+                <option value="PASSPORT">Passport Specimen (ICAO Doc 9303 TD3 44-Char MRZ)</option>
+                <option value="DRIVING_LICENSE">Driving License Specimen (Parivahan State RTO)</option>
               </select>
             </div>
 
             {/* Field: Document File Upload */}
             <div>
               <label htmlFor="document-file-input" className="block text-[13.5px] font-bold text-gov-text mb-1">
-                Document Scan File <span className="text-gov-danger">*</span>
+                Digital ID Image / Scan <span className="text-gov-danger">*</span>
               </label>
               <div className="border-2 border-dashed border-gov-border p-4 rounded-sm bg-gov-bg text-center space-y-2 hover:bg-[#F0F4F8] transition-colors">
                 <input
@@ -267,7 +305,7 @@ export default function NewScreeningPage() {
                   className="block w-full text-[13px] text-gov-text file:mr-4 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-[13px] file:font-semibold file:bg-gov-primary file:text-white hover:file:bg-gov-primaryDark cursor-pointer"
                 />
                 <p className="text-[11.5px] text-gov-muted">
-                  Supported: <strong>PNG, JPG, JPEG, PDF</strong> (Analyzed via ELA, Noise Variance & Sobel Gradients)
+                  Supported: <strong>PNG, JPG, JPEG, PDF</strong> (Scanned via ELA, Noise Variance & Grad-CAM Attention)
                 </p>
               </div>
 
@@ -279,13 +317,35 @@ export default function NewScreeningPage() {
               )}
             </div>
 
-            {/* User Claimed Identity Details (Custom Data Support) */}
+            {/* Quick Demo Pre-fill Chips */}
+            {mockRegistry.length > 0 && (
+              <div className="p-2.5 bg-gov-lightBlue/60 rounded-sm border border-gov-border space-y-1.5">
+                <span className="text-[11.5px] font-bold text-gov-primary flex items-center space-x-1 font-mono">
+                  <Database className="w-3.5 h-3.5" />
+                  <span>Quick Pre-fill from Registered Ground-Truth Entities:</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {mockRegistry.slice(0, 4).map((person) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onClick={() => handlePreFill(person)}
+                      className="text-[11px] font-mono font-semibold px-2 py-0.5 bg-white hover:bg-gov-primary hover:text-white border border-gov-border rounded-sm transition-colors text-gov-text"
+                    >
+                      {person.full_name} ({person.nationality})
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* User Claimed Identity Details */}
             <div className="pt-3 border-t border-gov-border space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-bold text-gov-primary uppercase tracking-wider">
-                  Subject Identity Information (Optional / Confirm Claimed Data):
+                  Subject Identity Attributes (Confirm / Enter Claimed Data):
                 </span>
-                <span className="text-[11px] text-gov-muted italic">Used for cross-field consistency checks</span>
+                <span className="text-[11px] text-gov-muted italic">Used for DB cross-verification</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -298,9 +358,8 @@ export default function NewScreeningPage() {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="gov-input font-mono uppercase"
-                    placeholder="e.g. ANAND P / VIKRAM RAO"
+                    placeholder="e.g. ANAND KUMAR / PRIYA SHARMA"
                   />
-                  <p className="text-[11px] text-gov-muted mt-0.5">Enter the exact name printed on credential</p>
                 </div>
 
                 <div>
@@ -314,21 +373,24 @@ export default function NewScreeningPage() {
                     className="gov-input font-mono"
                     placeholder="DD-MM-YYYY (e.g. 15-08-1998)"
                   />
-                  <p className="text-[11px] text-gov-muted mt-0.5">Format: DD-MM-YYYY</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Document Number
+                    Document ID Number
                   </label>
                   <input
                     type="text"
                     value={docNumber}
                     onChange={(e) => setDocNumber(e.target.value)}
                     className="gov-input font-mono uppercase"
-                    placeholder="e.g. P9876543"
+                    placeholder={
+                      docType === 'AADHAAR' ? '548291038476' :
+                      docType === 'PAN' ? 'ABCPA1234F' :
+                      docType === 'PASSPORT' ? 'Z9876543' : 'TN0120180004567'
+                    }
                   />
                 </div>
 
@@ -354,30 +416,46 @@ export default function NewScreeningPage() {
                     value={nationality}
                     onChange={(e) => setNationality(e.target.value.toUpperCase())}
                     className="gov-input font-mono uppercase"
-                    placeholder="e.g. IND / USA / GBR"
+                    placeholder="IND"
                     maxLength={3}
                   />
                 </div>
               </div>
             </div>
 
-            {/* Optional Live Camera Selfie Upload */}
+            {/* Live Camera Capture Module */}
             <div className="pt-3 border-t border-gov-border space-y-2">
-              <label htmlFor="live-photo-input" className="block text-[13px] font-bold text-gov-text flex items-center space-x-1.5">
-                <Camera className="w-4 h-4 text-gov-secondary" />
-                <span>Live Verification Selfie (Optional Facial Biometrics)</span>
-              </label>
-              <input
-                id="live-photo-input"
-                type="file"
-                accept=".jpg,.jpeg,.png"
-                onChange={handleLivePhotoChange}
-                className="block w-full text-[12.5px] text-gov-text file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-[12px] file:font-semibold file:bg-gov-secondary file:text-white hover:file:bg-gov-primary cursor-pointer"
-              />
+              <div className="flex items-center justify-between">
+                <label className="block text-[13px] font-bold text-gov-text flex items-center space-x-1.5">
+                  <Camera className="w-4 h-4 text-gov-secondary" />
+                  <span>Live Capture / Selfie Module (Biometric Liveness Match)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCameraOpen(true)}
+                  className="px-2.5 py-1 text-[11.5px] font-bold text-white bg-gov-secondary hover:bg-gov-primary rounded-sm inline-flex items-center space-x-1 transition-colors"
+                >
+                  <Video className="w-3.5 h-3.5" />
+                  <span>Open Live Webcam</span>
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <input
+                  id="live-photo-input"
+                  type="file"
+                  accept=".jpg,.jpeg,.png"
+                  onChange={handleLivePhotoChange}
+                  className="block w-full text-[12.5px] text-gov-text file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-[12px] file:font-semibold file:bg-gov-bg file:text-gov-text hover:file:bg-gov-lightBlue cursor-pointer"
+                />
+              </div>
+
               {livePhotoPreview && (
-                <div className="mt-1 flex items-center space-x-2">
+                <div className="mt-1 flex items-center space-x-2 p-1.5 bg-emerald-50 border border-emerald-300 rounded-sm">
                   <img src={livePhotoPreview} alt="Live selfie preview" className="w-12 h-12 rounded-sm border object-cover" />
-                  <span className="text-[11px] text-gov-green font-bold">✓ Live Selfie Attached for Biometric Cross-Correlation</span>
+                  <span className="text-[11.5px] text-emerald-800 font-bold font-mono">
+                    ✓ Live Selfie Ready for Biometric Feature & Liveness Cross-Correlation
+                  </span>
                 </div>
               )}
             </div>
@@ -409,7 +487,7 @@ export default function NewScreeningPage() {
         <div className="lg:col-span-5 gov-card space-y-4">
           <div className="gov-section-header">
             <div>
-              <span>Benchmark Demo Suite</span>
+              <span>Benchmark Forgery Demo Suite</span>
               <p className="text-[12px] font-normal text-gov-muted">
                 Pre-configured test specimens demonstrating specific discrepancy detection
               </p>
@@ -472,8 +550,8 @@ export default function NewScreeningPage() {
             })}
           </div>
 
-          <NoticeBox type="info" title="Public Standards Validation">
-            All screenings validate against official ICAO Doc 9303 modulus-10 check digit formulas and ISO 3166 country specifications.
+          <NoticeBox type="info" title="SIH26188 Verification Protocol">
+            All screenings run automated Verhoeff Aadhaar checksums, PAN syntax validators, Ground-Truth Database cross-checks, and Grad-CAM/ELA image forensics.
           </NoticeBox>
         </div>
       </div>

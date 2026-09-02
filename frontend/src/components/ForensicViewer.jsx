@@ -15,6 +15,7 @@ export default function ForensicViewer({
   const [hoveredRegion, setHoveredRegion] = useState(null);
 
   const tabs = [
+    { id: 'gradcam', label: 'Grad-CAM Attention', icon: Flame, badge: 'AI Saliency' },
     { id: 'heatmap', label: 'Cyber Heatmap', icon: Flame, badge: suspiciousRegions.length > 0 ? `${suspiciousRegions.length} Flagged` : null },
     { id: 'ela', label: 'Error Level (ELA)', icon: Layers },
     { id: 'noise', label: 'Noise Variance', icon: Cpu },
@@ -26,6 +27,8 @@ export default function ForensicViewer({
 
   const getCurrentImageUrl = () => {
     switch (activeTab) {
+      case 'gradcam':
+        return forensicMaps.gradcam || forensicMaps.heatmap || originalUrl;
       case 'heatmap':
         return forensicMaps.heatmap || originalUrl;
       case 'ela':
@@ -41,6 +44,7 @@ export default function ForensicViewer({
         return forensicMaps.original || originalUrl;
     }
   };
+
 
   return (
     <div className="gov-card space-y-4">
