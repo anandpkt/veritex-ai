@@ -25,10 +25,15 @@ export const analyzePreset = async (caseId) => {
   return res.data;
 };
 
-export const uploadAndScreen = async (file, docType = 'PASSPORT', livePhoto = null) => {
+export const uploadAndScreen = async (file, docType = 'PASSPORT', livePhoto = null, claimedDetails = {}) => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('document_type', docType);
+  if (claimedDetails.name) formData.append('name', claimedDetails.name);
+  if (claimedDetails.dob) formData.append('dob', claimedDetails.dob);
+  if (claimedDetails.document_number) formData.append('document_number', claimedDetails.document_number);
+  if (claimedDetails.expiry_date) formData.append('expiry_date', claimedDetails.expiry_date);
+  if (claimedDetails.nationality) formData.append('nationality', claimedDetails.nationality);
   if (livePhoto) {
     formData.append('live_photo', livePhoto);
   }
