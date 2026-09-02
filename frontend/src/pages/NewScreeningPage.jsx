@@ -17,9 +17,13 @@ import {
   Calendar,
   Database,
   ShieldCheck,
-  Video
+  Video,
+  Hash,
+  ArrowRight,
+  Zap,
+  Search
 } from 'lucide-react';
-import { getPresets, analyzePreset, uploadAndScreen, getMockRegistry } from '../services/api';
+import { getPresets, analyzePreset, uploadAndScreen, getMockRegistry, verifyIdNumber } from '../services/api';
 import Breadcrumbs from '../components/Breadcrumbs';
 import NoticeBox from '../components/NoticeBox';
 import LiveCameraModal from '../components/LiveCameraModal';
@@ -30,7 +34,15 @@ export default function NewScreeningPage() {
   const [presets, setPresets] = useState([]);
   const [mockRegistry, setMockRegistry] = useState([]);
 
-  // File states
+  // Verification Mode: 'DIRECT_ID' (Instant number check) vs 'FULL_DOCUMENT' (Scan & Camera)
+  const [verificationMode, setVerificationMode] = useState('DIRECT_ID');
+
+  // Direct ID Number Verification States
+  const [directDocType, setDirectDocType] = useState('AADHAAR');
+  const [directDocNumber, setDirectDocNumber] = useState('');
+  const [directClaimedName, setDirectClaimedName] = useState('');
+
+  // File Upload & Camera States
   const [selectedFile, setSelectedFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [selectedLivePhoto, setSelectedLivePhoto] = useState(null);
@@ -50,14 +62,10 @@ export default function NewScreeningPage() {
   const [validationError, setValidationError] = useState('');
 
   const processingSteps = [
-    'Validating uploaded file format, dimensions & DPI resolution',
-    'Extracting & cross-referencing subject details (Name, DOB, Doc Number)',
-    'Executing Verhoeff (Aadhaar) / PAN Regex / ICAO Checksum Algorithms',
-    'Querying National Citizen & Document Ground-Truth Registry (UIDAI/NSDL)',
-    'Classifying discrepancies (Fuzzy Typo Penalty vs Critical Identity Swap)',
-    'Executing Error Level Analysis (ELA) and Grad-CAM attention heatmap',
-    'Computing biometric cross-correlation against live selfie stream',
-    'Synthesizing multi-signal evidence chain and computing risk assessment'
+    'Validating format & mathematical checksum algorithm (Verhoeff / PAN / ICAO)',
+    'Querying National Citizen & Document Ground-Truth Registry (UIDAI/NSDL/Passport)',
+    'Cross-referencing entity attributes and classifying discrepancy risk',
+    'Synthesizing multi-signal evidence chain and computing authenticity score'
   ];
 
   useEffect(() => {
@@ -112,7 +120,22 @@ export default function NewScreeningPage() {
     setLivePhotoPreview(previewUrl);
   };
 
-  const handlePreFill = (person) => {
+  const handlePreFillDirect = (person) => {
+    setDirectClaimedName(person.full_name);
+    if (directDocType === 'AADHAAR' && person.aadhaar_number) {
+      setDirectDocNumber(person.aadhaar_number);
+    } else if (directDocType === 'PAN' && person.pan_number) {
+      setDirectDocNumber(person.pan_number);
+    } else if (directDocType === 'PASSPORT' && person.passport_number) {
+      setDirectDocNumber(person.passport_number);
+    } else if (directDocType === 'DRIVING_LICENSE' && person.dl_number) {
+      setDirectDocNumber(person.dl_number);
+    } else {
+      setDirectDocNumber(person.aadhaar_number || person.pan_number || '548291038476');
+    }
+  };
+
+  const handlePreFillFull = (person) => {
     setName(person.full_name);
     setDob(person.dob);
     setNationality(person.nationality || 'IND');
@@ -136,6 +159,32 @@ export default function NewScreeningPage() {
     }
   };
 
+  // Direct ID Number Form Submit (No image or camera required)
+  const handleDirectIdSubmit = async (e) => {
+    e.preventDefault();
+    if (!directDocNumber.trim()) {
+      setValidationError('Please enter a valid ID Number (e.g. 12-digit Aadhaar or 10-char PAN).');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const progressPromise = simulateStepProgress();
+      const apiPromise = verifyIdNumber(
+        directDocType,
+        directDocNumber.trim(),
+        directClaimedName.trim() || undefined
+      );
+      const [, res] = await Promise.all([progressPromise, apiPromise]);
+      navigate(`/screening/${res.id}`);
+    } catch (err) {
+      console.error('Direct ID verification failed:', err);
+      setValidationError('Failed to complete ID query. Please check the ID format and try again.');
+      setLoading(false);
+    }
+  };
+
+  // Full Document Scan & Camera Submit
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -187,6 +236,8 @@ export default function NewScreeningPage() {
     setDocNumber('');
     setExpiryDate('');
     setNationality('IND');
+    setDirectDocNumber('');
+    setDirectClaimedName('');
     setValidationError('');
     const fileInput = document.getElementById('document-file-input');
     if (fileInput) fileInput.value = '';
@@ -201,11 +252,40 @@ export default function NewScreeningPage() {
       {/* Page Header */}
       <div className="gov-card space-y-2 border-l-4 border-gov-primary">
         <h1 className="text-[24px] font-extrabold text-gov-primary">
-          AI-Based Fake Identity & Document Screening System (SIH26188)
+          AI Identity & Document Screening System (SIH26188)
         </h1>
         <p className="text-[14px] text-gov-muted">
-          Multi-signal verification engine: Verhoeff Checksum (Aadhaar), PAN Format Validation, Ground-Truth Database Cross-Check, Grad-CAM/ELA Forgery Detection, and Live Biometric Liveness Matching.
+          Verify identities instantly by <strong>ID Number Only</strong> (Verhoeff Checksum & Database Cross-Check) or run <strong>Full Document Screening</strong> with image forensics and biometrics.
         </p>
+      </div>
+
+      {/* Mode Selection Switcher */}
+      <div className="flex border-b border-gov-border gap-2 bg-gov-bg p-1 rounded-sm">
+        <button
+          type="button"
+          onClick={() => { setVerificationMode('DIRECT_ID'); setValidationError(''); }}
+          className={`flex-1 py-3 px-4 rounded-sm font-bold text-[14px] flex items-center justify-center space-x-2 transition-all ${
+            verificationMode === 'DIRECT_ID'
+              ? 'bg-gov-primary text-white shadow-sm'
+              : 'text-gov-muted hover:bg-gov-lightBlue hover:text-gov-primary'
+          }`}
+        >
+          <Zap className="w-4 h-4 text-gov-saffron" />
+          <span>Instant ID Number Check (No Camera / Image Required)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => { setVerificationMode('FULL_DOCUMENT'); setValidationError(''); }}
+          className={`flex-1 py-3 px-4 rounded-sm font-bold text-[14px] flex items-center justify-center space-x-2 transition-all ${
+            verificationMode === 'FULL_DOCUMENT'
+              ? 'bg-gov-primary text-white shadow-sm'
+              : 'text-gov-muted hover:bg-gov-lightBlue hover:text-gov-primary'
+          }`}
+        >
+          <Upload className="w-4 h-4 text-gov-secondary" />
+          <span>Full Document Scan & Biometric Screening</span>
+        </button>
       </div>
 
       {/* Live Camera Modal */}
@@ -222,9 +302,9 @@ export default function NewScreeningPage() {
             <div className="border-b border-gov-border pb-3">
               <h3 className="text-[16px] font-bold text-gov-primary uppercase tracking-wide flex items-center space-x-2">
                 <span className="w-3 h-3 rounded-full bg-gov-saffron animate-pulse"></span>
-                <span>Executing SIH26188 Multi-Signal AI Security Pipeline</span>
+                <span>Executing SIH26188 Verification Pipeline</span>
               </h3>
-              <p className="text-[12px] text-gov-muted font-mono">Cross-checking checksums, database registry & image forensics...</p>
+              <p className="text-[12px] text-gov-muted font-mono">Cross-checking checksum algorithms and Ground-Truth registry...</p>
             </div>
 
             {/* Checklist of stages */}
@@ -249,238 +329,358 @@ export default function NewScreeningPage() {
             </div>
 
             <div className="text-[11.5px] text-gov-muted bg-gov-lightBlue p-2.5 rounded-sm border border-gov-border">
-              Please wait while the multi-vector engine analyzes pixel compression seams, verifies database registry records, and computes the risk score.
+              Please wait while the multi-vector engine validates check digits and verifies identity records.
             </div>
           </div>
         </div>
       )}
 
-      {/* Main Request Form & Demo Cases Grid */}
+      {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Form: Document Submission (7 cols) */}
+        {/* Left Column: Form according to mode (7 cols) */}
         <div className="lg:col-span-7 gov-card space-y-4">
-          <div className="gov-section-header">
-            <span>Identity Document Submission & Verification</span>
-            <span className="text-[12px] font-mono text-gov-primary bg-gov-lightBlue px-2 py-0.5 rounded border border-gov-border">
-              UIDAI / NSDL / ICAO
-            </span>
-          </div>
-
           {validationError && (
             <NoticeBox type="danger" title="Validation Error">
               {validationError}
             </NoticeBox>
           )}
 
-          <form onSubmit={handleUploadSubmit} className="space-y-4">
-            {/* Field: Document Type */}
-            <div>
-              <label htmlFor="doc-type-select" className="block text-[13.5px] font-bold text-gov-text mb-1">
-                Document Category Standard <span className="text-gov-danger">*</span>
-              </label>
-              <select
-                id="doc-type-select"
-                value={docType}
-                onChange={(e) => setDocType(e.target.value)}
-                className="gov-input font-bold text-gov-primary"
-              >
-                <option value="AADHAAR">Aadhaar Card (UIDAI 12-Digit Verhoeff Checksum)</option>
-                <option value="PAN">PAN Card (Income Tax 10-Char Entity Alphanumeric)</option>
-                <option value="PASSPORT">Passport Specimen (ICAO Doc 9303 TD3 44-Char MRZ)</option>
-                <option value="DRIVING_LICENSE">Driving License Specimen (Parivahan State RTO)</option>
-              </select>
-            </div>
-
-            {/* Field: Document File Upload */}
-            <div>
-              <label htmlFor="document-file-input" className="block text-[13.5px] font-bold text-gov-text mb-1">
-                Digital ID Image / Scan <span className="text-gov-danger">*</span>
-              </label>
-              <div className="border-2 border-dashed border-gov-border p-4 rounded-sm bg-gov-bg text-center space-y-2 hover:bg-[#F0F4F8] transition-colors">
-                <input
-                  id="document-file-input"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={handleFileChange}
-                  className="block w-full text-[13px] text-gov-text file:mr-4 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-[13px] file:font-semibold file:bg-gov-primary file:text-white hover:file:bg-gov-primaryDark cursor-pointer"
-                />
-                <p className="text-[11.5px] text-gov-muted">
-                  Supported: <strong>PNG, JPG, JPEG, PDF</strong> (Scanned via ELA, Noise Variance & Grad-CAM Attention)
-                </p>
+          {/* ========================================================================= */}
+          {/* MODE 1: INSTANT ID NUMBER VERIFICATION (NO UPLOAD / CAMERA REQUIRED)     */}
+          {/* ========================================================================= */}
+          {verificationMode === 'DIRECT_ID' && (
+            <div className="space-y-4">
+              <div className="gov-section-header">
+                <span>Instant ID Number Check</span>
+                <span className="text-[11px] font-mono text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold">
+                  FAST ALGORITHMIC CHECK
+                </span>
               </div>
 
-              {filePreview && (
-                <div className="mt-2 p-2 bg-white border border-gov-border rounded-sm flex items-center space-x-3">
-                  <img src={filePreview} alt="Document attachment preview" className="h-16 rounded-sm border object-contain" />
-                  <span className="text-[12px] text-gov-muted font-mono">Document Scan Attached Ready for Screening</span>
-                </div>
-              )}
-            </div>
+              <NoticeBox type="info" title="Direct ID Verification">
+                Enter any Aadhaar, PAN, Passport, or DL number. The system will mathematically validate the check digits (Verhoeff / PAN structure) and query the official verification registry.
+              </NoticeBox>
 
-            {/* Quick Demo Pre-fill Chips */}
-            {mockRegistry.length > 0 && (
-              <div className="p-2.5 bg-gov-lightBlue/60 rounded-sm border border-gov-border space-y-1.5">
-                <span className="text-[11.5px] font-bold text-gov-primary flex items-center space-x-1 font-mono">
-                  <Database className="w-3.5 h-3.5" />
-                  <span>Quick Pre-fill from Registered Ground-Truth Entities:</span>
+              <form onSubmit={handleDirectIdSubmit} className="space-y-4">
+                {/* ID Type Selector */}
+                <div>
+                  <label className="block text-[13px] font-bold text-gov-text mb-1">
+                    Select Document Category Standard <span className="text-gov-danger">*</span>
+                  </label>
+                  <select
+                    value={directDocType}
+                    onChange={(e) => setDirectDocType(e.target.value)}
+                    className="gov-input font-bold text-gov-primary"
+                  >
+                    <option value="AADHAAR">Aadhaar Card (UIDAI 12-Digit Verhoeff Checksum)</option>
+                    <option value="PAN">PAN Card (Income Tax 10-Char Entity Alphanumeric)</option>
+                    <option value="PASSPORT">Passport (ICAO Doc 9303 Check Digits)</option>
+                    <option value="DRIVING_LICENSE">Driving License (Parivahan State RTO)</option>
+                  </select>
+                </div>
+
+                {/* ID Number Input */}
+                <div>
+                  <label className="block text-[13px] font-bold text-gov-text mb-1">
+                    Enter Document ID Number <span className="text-gov-danger">*</span>
+                  </label>
+                  <div className="relative">
+                    <Hash className="w-4 h-4 text-gov-muted absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      value={directDocNumber}
+                      onChange={(e) => setDirectDocNumber(e.target.value)}
+                      className="gov-input pl-9 text-[15px] font-mono font-bold uppercase tracking-wider text-gov-primary"
+                      placeholder={
+                        directDocType === 'AADHAAR' ? 'e.g. 548291038476 (12 digits)' :
+                        directDocType === 'PAN' ? 'e.g. ABCPA1234F (10 characters)' :
+                        directDocType === 'PASSPORT' ? 'e.g. Z9876543' : 'e.g. TN0120180004567'
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Optional Claimed Name */}
+                <div>
+                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                    Claimed Entity / Subject Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={directClaimedName}
+                    onChange={(e) => setDirectClaimedName(e.target.value)}
+                    className="gov-input font-mono uppercase"
+                    placeholder="e.g. ANAND KUMAR (To test fuzzy match & typo detection)"
+                  />
+                  <p className="text-[11px] text-gov-muted mt-0.5">
+                    If provided, the engine will cross-check fuzzy name distance against the database.
+                  </p>
+                </div>
+
+                {/* Quick Pre-fill Chips */}
+                {mockRegistry.length > 0 && (
+                  <div className="p-3 bg-gov-lightBlue/60 rounded-sm border border-gov-border space-y-2">
+                    <span className="text-[11.5px] font-bold text-gov-primary flex items-center space-x-1 font-mono">
+                      <Database className="w-3.5 h-3.5" />
+                      <span>One-Click Test IDs from Verified Database:</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {mockRegistry.map((person) => (
+                        <button
+                          key={person.id}
+                          type="button"
+                          onClick={() => handlePreFillDirect(person)}
+                          className="text-[11.5px] font-mono font-bold px-2.5 py-1 bg-white hover:bg-gov-primary hover:text-white border border-gov-border rounded-sm transition-colors text-gov-primary"
+                        >
+                          {person.full_name} ({person.nationality})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Form Buttons */}
+                <div className="pt-3 border-t border-gov-border flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="gov-btn-secondary"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Clear</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={!directDocNumber.trim() || loading}
+                    className="gov-btn-primary py-2 px-5 text-[14px]"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span>Verify ID Number &rarr;</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* MODE 2: FULL DOCUMENT & FORENSIC SCREENING (IMAGE / LIVE CAMERA)          */}
+          {/* ========================================================================= */}
+          {verificationMode === 'FULL_DOCUMENT' && (
+            <div className="space-y-4">
+              <div className="gov-section-header">
+                <span>Full Document Scan & Biometric Verification</span>
+                <span className="text-[11px] font-mono text-gov-primary bg-gov-lightBlue px-2 py-0.5 rounded border border-gov-border font-bold">
+                  ELA & GRAD-CAM
                 </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {mockRegistry.slice(0, 4).map((person) => (
+              </div>
+
+              <form onSubmit={handleUploadSubmit} className="space-y-4">
+                {/* Field: Document Type */}
+                <div>
+                  <label className="block text-[13.5px] font-bold text-gov-text mb-1">
+                    Document Category Standard <span className="text-gov-danger">*</span>
+                  </label>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className="gov-input font-bold text-gov-primary"
+                  >
+                    <option value="AADHAAR">Aadhaar Card (UIDAI 12-Digit Verhoeff Checksum)</option>
+                    <option value="PAN">PAN Card (Income Tax 10-Char Entity Alphanumeric)</option>
+                    <option value="PASSPORT">Passport Specimen (ICAO Doc 9303 TD3 44-Char MRZ)</option>
+                    <option value="DRIVING_LICENSE">Driving License Specimen (Parivahan State RTO)</option>
+                  </select>
+                </div>
+
+                {/* Field: Document File Upload */}
+                <div>
+                  <label className="block text-[13.5px] font-bold text-gov-text mb-1">
+                    Digital ID Image / Scan <span className="text-gov-danger">*</span>
+                  </label>
+                  <div className="border-2 border-dashed border-gov-border p-4 rounded-sm bg-gov-bg text-center space-y-2 hover:bg-[#F0F4F8] transition-colors">
+                    <input
+                      id="document-file-input"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleFileChange}
+                      className="block w-full text-[13px] text-gov-text file:mr-4 file:py-1.5 file:px-3 file:rounded-sm file:border-0 file:text-[13px] file:font-semibold file:bg-gov-primary file:text-white hover:file:bg-gov-primaryDark cursor-pointer"
+                    />
+                    <p className="text-[11.5px] text-gov-muted">
+                      Supported: <strong>PNG, JPG, JPEG, PDF</strong> (Scanned via ELA, Noise Variance & Grad-CAM)
+                    </p>
+                  </div>
+
+                  {filePreview && (
+                    <div className="mt-2 p-2 bg-white border border-gov-border rounded-sm flex items-center space-x-3">
+                      <img src={filePreview} alt="Document attachment preview" className="h-16 rounded-sm border object-contain" />
+                      <span className="text-[12px] text-gov-muted font-mono">Document Scan Attached Ready for Screening</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Demo Pre-fill Chips */}
+                {mockRegistry.length > 0 && (
+                  <div className="p-2.5 bg-gov-lightBlue/60 rounded-sm border border-gov-border space-y-1.5">
+                    <span className="text-[11.5px] font-bold text-gov-primary flex items-center space-x-1 font-mono">
+                      <Database className="w-3.5 h-3.5" />
+                      <span>Quick Pre-fill from Registered Ground-Truth Entities:</span>
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {mockRegistry.slice(0, 4).map((person) => (
+                        <button
+                          key={person.id}
+                          type="button"
+                          onClick={() => handlePreFillFull(person)}
+                          className="text-[11px] font-mono font-semibold px-2 py-0.5 bg-white hover:bg-gov-primary hover:text-white border border-gov-border rounded-sm transition-colors text-gov-text"
+                        >
+                          {person.full_name} ({person.nationality})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* User Claimed Identity Details */}
+                <div className="pt-3 border-t border-gov-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-bold text-gov-primary uppercase tracking-wider">
+                      Subject Identity Attributes (Confirm Claimed Data):
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                        Subject Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="gov-input font-mono uppercase"
+                        placeholder="e.g. ANAND KUMAR / PRIYA SHARMA"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                        Date of Birth (DOB)
+                      </label>
+                      <input
+                        type="text"
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="gov-input font-mono"
+                        placeholder="DD-MM-YYYY (e.g. 15-08-1998)"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                        Document ID Number
+                      </label>
+                      <input
+                        type="text"
+                        value={docNumber}
+                        onChange={(e) => setDocNumber(e.target.value)}
+                        className="gov-input font-mono uppercase"
+                        placeholder={
+                          docType === 'AADHAAR' ? '548291038476' :
+                          docType === 'PAN' ? 'ABCPA1234F' : 'Z9876543'
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                        Date of Expiry
+                      </label>
+                      <input
+                        type="text"
+                        value={expiryDate}
+                        onChange={(e) => setExpiryDate(e.target.value)}
+                        className="gov-input font-mono"
+                        placeholder="DD-MM-YYYY"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[12.5px] font-bold text-gov-text mb-1">
+                        Country Code (ISO 3166)
+                      </label>
+                      <input
+                        type="text"
+                        value={nationality}
+                        onChange={(e) => setNationality(e.target.value.toUpperCase())}
+                        className="gov-input font-mono uppercase"
+                        placeholder="IND"
+                        maxLength={3}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Camera Capture Module */}
+                <div className="pt-3 border-t border-gov-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[13px] font-bold text-gov-text flex items-center space-x-1.5">
+                      <Camera className="w-4 h-4 text-gov-secondary" />
+                      <span>Live Capture / Webcam Selfie (Optional Biometrics)</span>
+                    </label>
                     <button
-                      key={person.id}
                       type="button"
-                      onClick={() => handlePreFill(person)}
-                      className="text-[11px] font-mono font-semibold px-2 py-0.5 bg-white hover:bg-gov-primary hover:text-white border border-gov-border rounded-sm transition-colors text-gov-text"
+                      onClick={() => setIsCameraOpen(true)}
+                      className="px-2.5 py-1 text-[11.5px] font-bold text-white bg-gov-secondary hover:bg-gov-primary rounded-sm inline-flex items-center space-x-1 transition-colors"
                     >
-                      {person.full_name} ({person.nationality})
+                      <Video className="w-3.5 h-3.5" />
+                      <span>Open Live Webcam</span>
                     </button>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* User Claimed Identity Details */}
-            <div className="pt-3 border-t border-gov-border space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-bold text-gov-primary uppercase tracking-wider">
-                  Subject Identity Attributes (Confirm / Enter Claimed Data):
-                </span>
-                <span className="text-[11px] text-gov-muted italic">Used for DB cross-verification</span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Subject Full Name
-                  </label>
                   <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="gov-input font-mono uppercase"
-                    placeholder="e.g. ANAND KUMAR / PRIYA SHARMA"
+                    id="live-photo-input"
+                    type="file"
+                    accept=".jpg,.jpeg,.png"
+                    onChange={handleLivePhotoChange}
+                    className="block w-full text-[12.5px] text-gov-text file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-[12px] file:font-semibold file:bg-gov-bg file:text-gov-text hover:file:bg-gov-lightBlue cursor-pointer"
                   />
+
+                  {livePhotoPreview && (
+                    <div className="mt-1 flex items-center space-x-2 p-1.5 bg-emerald-50 border border-emerald-300 rounded-sm">
+                      <img src={livePhotoPreview} alt="Live selfie preview" className="w-12 h-12 rounded-sm border object-cover" />
+                      <span className="text-[11.5px] text-emerald-800 font-bold font-mono">
+                        ✓ Live Selfie Ready for Biometric Feature & Liveness Cross-Correlation
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Date of Birth (DOB)
-                  </label>
-                  <input
-                    type="text"
-                    value={dob}
-                    onChange={(e) => setDob(e.target.value)}
-                    className="gov-input font-mono"
-                    placeholder="DD-MM-YYYY (e.g. 15-08-1998)"
-                  />
-                </div>
-              </div>
+                {/* Form Actions */}
+                <div className="pt-3 border-t border-gov-border flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="gov-btn-secondary"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>{t.btnReset}</span>
+                  </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Document ID Number
-                  </label>
-                  <input
-                    type="text"
-                    value={docNumber}
-                    onChange={(e) => setDocNumber(e.target.value)}
-                    className="gov-input font-mono uppercase"
-                    placeholder={
-                      docType === 'AADHAAR' ? '548291038476' :
-                      docType === 'PAN' ? 'ABCPA1234F' :
-                      docType === 'PASSPORT' ? 'Z9876543' : 'TN0120180004567'
-                    }
-                  />
+                  <button
+                    type="submit"
+                    disabled={!selectedFile || loading}
+                    className="gov-btn-primary"
+                  >
+                    <FileCheck className="w-4 h-4" />
+                    <span>{t.btnRunScreening}</span>
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Date of Expiry
-                  </label>
-                  <input
-                    type="text"
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                    className="gov-input font-mono"
-                    placeholder="DD-MM-YYYY"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[12.5px] font-bold text-gov-text mb-1">
-                    Country Code (ISO 3166)
-                  </label>
-                  <input
-                    type="text"
-                    value={nationality}
-                    onChange={(e) => setNationality(e.target.value.toUpperCase())}
-                    className="gov-input font-mono uppercase"
-                    placeholder="IND"
-                    maxLength={3}
-                  />
-                </div>
-              </div>
+              </form>
             </div>
-
-            {/* Live Camera Capture Module */}
-            <div className="pt-3 border-t border-gov-border space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-[13px] font-bold text-gov-text flex items-center space-x-1.5">
-                  <Camera className="w-4 h-4 text-gov-secondary" />
-                  <span>Live Capture / Selfie Module (Biometric Liveness Match)</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCameraOpen(true)}
-                  className="px-2.5 py-1 text-[11.5px] font-bold text-white bg-gov-secondary hover:bg-gov-primary rounded-sm inline-flex items-center space-x-1 transition-colors"
-                >
-                  <Video className="w-3.5 h-3.5" />
-                  <span>Open Live Webcam</span>
-                </button>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  id="live-photo-input"
-                  type="file"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={handleLivePhotoChange}
-                  className="block w-full text-[12.5px] text-gov-text file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:text-[12px] file:font-semibold file:bg-gov-bg file:text-gov-text hover:file:bg-gov-lightBlue cursor-pointer"
-                />
-              </div>
-
-              {livePhotoPreview && (
-                <div className="mt-1 flex items-center space-x-2 p-1.5 bg-emerald-50 border border-emerald-300 rounded-sm">
-                  <img src={livePhotoPreview} alt="Live selfie preview" className="w-12 h-12 rounded-sm border object-cover" />
-                  <span className="text-[11.5px] text-emerald-800 font-bold font-mono">
-                    ✓ Live Selfie Ready for Biometric Feature & Liveness Cross-Correlation
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Form Actions */}
-            <div className="pt-3 border-t border-gov-border flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleClear}
-                className="gov-btn-secondary"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>{t.btnReset}</span>
-              </button>
-
-              <button
-                type="submit"
-                disabled={!selectedFile || loading}
-                className="gov-btn-primary"
-              >
-                <FileCheck className="w-4 h-4" />
-                <span>{t.btnRunScreening}</span>
-              </button>
-            </div>
-          </form>
+          )}
         </div>
 
         {/* Right Column: Pre-Configured Benchmark Suite (5 cols) */}
@@ -551,7 +751,7 @@ export default function NewScreeningPage() {
           </div>
 
           <NoticeBox type="info" title="SIH26188 Verification Protocol">
-            All screenings run automated Verhoeff Aadhaar checksums, PAN syntax validators, Ground-Truth Database cross-checks, and Grad-CAM/ELA image forensics.
+            Instant ID checks and Full Document scans both validate against official Verhoeff Aadhaar checksums, PAN syntax formulas, Ground-Truth Database registries, and Grad-CAM attention heatmaps.
           </NoticeBox>
         </div>
       </div>

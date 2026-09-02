@@ -107,6 +107,16 @@ export const getMockRegistry = async () => {
   return res.data;
 };
 
+export const verifyIdNumber = async (docType, docNumber, claimedName = null) => {
+  const res = await api.post('/screening/verify-id-number', {
+    document_type: docType,
+    document_number: docNumber,
+    claimed_name: claimedName
+  });
+  return res.data;
+};
+
 export default api;
+
 
 
